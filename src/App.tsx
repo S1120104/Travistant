@@ -3,6 +3,7 @@ import Header from './components/Header';
 import FreeTierView from './components/FreeTierView';
 import ProTierView from './components/ProTierView';
 import BookingView from './components/BookingView';
+import PricingSection from './components/PricingSection';
 import { SubscriptionTier, TravelGuide, FullItinerary, UserPreferences } from './types';
 import { Sparkles, ArrowRight, Compass, Plane } from 'lucide-react';
 
@@ -208,6 +209,14 @@ export default function App() {
             />
           )}
         </div>
+
+        {/* Embedded Pricing Section directly visible on the page */}
+        <PricingSection
+          currentTier={tier}
+          setTier={setTier}
+          freeTriesRemaining={freeTries}
+          onResetTries={handleRefillTries}
+        />
 
       </main>
 
