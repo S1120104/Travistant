@@ -1,0 +1,6 @@
+{
+  "name": "Travel Assistant",
+  "description": "A comprehensive travel assistant featuring Free, Premium, and Elite tiers that generate tailored itineraries, suggest attractions, analyze weather, recommend optimized transport routes, and enable simulated booking integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
