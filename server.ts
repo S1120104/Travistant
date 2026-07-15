@@ -683,29 +683,33 @@ app.post("/api/travel/chat", async (req, res) => {
 // Static files serving and Vite integration
 const isProduction = process.env.NODE_ENV === "production";
 
-if (!isProduction) {
-  // Integrate Vite dev middleware
-  const startDevServer = async () => {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+if (!process.env.VERCEL) {
+  if (!isProduction) {
+    // Integrate Vite dev middleware
+    const startDevServer = async () => {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Express+Vite Server running on http://localhost:${PORT}`);
+      });
+    };
+    startDevServer();
+  } else {
+    // In production, serve built static assets from dist
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
-    app.use(vite.middlewares);
     
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Express+Vite Server running on http://localhost:${PORT}`);
+      console.log(`Production Express Server running on port ${PORT}`);
     });
-  };
-  startDevServer();
-} else {
-  // In production, serve built static assets from dist
-  const distPath = path.join(process.cwd(), "dist");
-  app.use(express.static(distPath));
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
-  
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Production Express Server running on port ${PORT}`);
-  });
+  }
 }
+
+export default app;
