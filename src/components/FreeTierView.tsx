@@ -18,6 +18,38 @@ export default function FreeTierView({ guide, loading, onGenerate, triesRemainin
   
   const interestOptions = ['food', 'culture', 'history', 'nature', 'shopping', 'entertainment'];
   const [selectedInterests, setSelectedInterests] = useState<string[]>(['culture', 'food']);
+  const [activeDay, setActiveDay] = useState(1);
+
+  // Distribute the 5 attractions across the requested days
+  const getAttractionsForDay = (dayNum: number) => {
+    const attractions = guide?.attractions || [];
+    if (attractions.length === 0) return [];
+
+    const totalDays = guide?.days || 3;
+    if (totalDays <= 1) {
+      return attractions.map((a, i) => ({
+        ...a,
+        slot: i === 0 ? '09:00 AM' : i === 1 ? '11:30 AM' : i === 2 ? '02:00 PM' : i === 3 ? '04:30 PM' : '07:30 PM'
+      }));
+    }
+
+    const items: any[] = [];
+    attractions.forEach((a, index) => {
+      const assignedDay = (index % totalDays) + 1;
+      if (assignedDay === dayNum) {
+        const dayCount = items.length;
+        const slot = dayCount === 0 ? '10:00 AM' : dayCount === 1 ? '03:00 PM' : '06:30 PM';
+        items.push({ ...a, slot });
+      }
+    });
+
+    if (items.length === 0 && attractions.length > 0) {
+      const fallbackAttr = attractions[(dayNum - 1) % attractions.length];
+      items.push({ ...fallbackAttr, slot: '10:00 AM' });
+    }
+
+    return items;
+  };
 
   const inspirations = [
     { name: "Tokyo, Japan", days: 4, tag: "Neon & Culture", interests: ["culture", "food", "entertainment"] },
@@ -312,6 +344,59 @@ export default function FreeTierView({ guide, loading, onGenerate, triesRemainin
                 <div className="absolute bottom-2 right-2 bg-zinc-900/80 backdrop-blur-sm text-white px-2 py-0.5 rounded text-[9px] font-mono">
                   Vagabond Map Engine v2.1
                 </div>
+              </div>
+            </div>
+
+            {/* Interactive Day-by-Day Route Planner */}
+            <div className="bg-white rounded-[32px] border border-zinc-200 p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-100 pb-4 mb-4">
+                <div>
+                  <h4 className="text-xs font-bold text-zinc-800 uppercase tracking-wider font-mono">Interactive Day-by-Day Route Planner</h4>
+                  <p className="text-[10px] text-zinc-400">Sequential chronological flow of attractions per day</p>
+                </div>
+                {/* Day Tabs */}
+                <div className="flex gap-1.5 overflow-x-auto max-w-full">
+                  {Array.from({ length: Math.min(guide.days || 3, 7) }, (_, i) => i + 1).map((dayNum) => (
+                    <button
+                      key={dayNum}
+                      type="button"
+                      id={`free-day-tab-${dayNum}`}
+                      onClick={() => setActiveDay(dayNum)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        activeDay === dayNum
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-zinc-50 border border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                      }`}
+                    >
+                      Day {dayNum}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Day Timeline */}
+              <div className="relative border-l border-zinc-100 ml-3.5 pl-5.5 space-y-6 py-2">
+                {getAttractionsForDay(activeDay).map((a, i) => (
+                  <div key={a.id || i} className="relative group">
+                    {/* Time dot */}
+                    <span className="absolute -left-[30px] top-1 w-4 h-4 rounded-full bg-indigo-50 border-2 border-indigo-600 flex items-center justify-center group-hover:scale-110 transition-all shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                    </span>
+
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/50 mr-2">
+                          {a.slot}
+                        </span>
+                        <h5 className="text-xs font-bold text-zinc-800 inline-block mt-1 sm:mt-0">{a.name}</h5>
+                        <p className="text-[11px] text-zinc-500 leading-relaxed mt-1 font-medium">{a.description}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-zinc-400 font-mono self-start shrink-0">
+                        {a.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
