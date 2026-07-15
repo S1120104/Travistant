@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -256,6 +256,164 @@ function generateLocalFallbackItinerary(dest: string, days: number, interests: s
   };
 }
 
+// SCHEMA DEFINITIONS FOR GEMINI STRUCTURED OUTPUTS
+const weatherInfoSchema = {
+  type: Type.OBJECT,
+  properties: {
+    tempCelsius: { type: Type.NUMBER },
+    condition: { type: Type.STRING },
+    bestTimeToVisit: { type: Type.STRING }
+  },
+  required: ["tempCelsius", "condition", "bestTimeToVisit"]
+};
+
+const attractionSchema = {
+  type: Type.OBJECT,
+  properties: {
+    id: { type: Type.STRING },
+    name: { type: Type.STRING },
+    type: { 
+      type: Type.STRING, 
+      enum: ['Food', 'Culture', 'History', 'Nature', 'Shopping', 'Entertainment'] 
+    },
+    description: { type: Type.STRING },
+    popularity: { type: Type.STRING },
+    crowdLevel: { 
+      type: Type.STRING, 
+      enum: ['Low', 'Medium', 'High'] 
+    },
+    crowdPeakDescription: { type: Type.STRING },
+    weatherIndicator: { type: Type.STRING },
+    pricing: {
+      type: Type.OBJECT,
+      properties: {
+        admission: { type: Type.NUMBER },
+        admissionDetail: { type: Type.STRING },
+        hostelMin: { type: Type.NUMBER },
+        budgetHotelMin: { type: Type.NUMBER },
+        luxuryHotelMin: { type: Type.NUMBER }
+      },
+      required: ["admission", "admissionDetail", "hostelMin", "budgetHotelMin", "luxuryHotelMin"]
+    }
+  },
+  required: [
+    "id", "name", "type", "description", "popularity", 
+    "crowdLevel", "crowdPeakDescription", "weatherIndicator", "pricing"
+  ]
+};
+
+const travelGuideSchema = {
+  type: Type.OBJECT,
+  properties: {
+    destination: { type: Type.STRING },
+    days: { type: Type.INTEGER },
+    weather: weatherInfoSchema,
+    popularitySummary: { type: Type.STRING },
+    clothingSuggestions: { type: Type.STRING },
+    attractions: {
+      type: Type.ARRAY,
+      items: attractionSchema
+    }
+  },
+  required: ["destination", "days", "weather", "popularitySummary", "clothingSuggestions", "attractions"]
+};
+
+const transportSchema = {
+  type: Type.OBJECT,
+  properties: {
+    instruction: { type: Type.STRING },
+    optimalMethod: { type: Type.STRING },
+    durationMins: { type: Type.INTEGER },
+    isFree: { type: Type.BOOLEAN },
+    price: { type: Type.NUMBER },
+    ticketLink: { type: Type.STRING }
+  },
+  required: ["instruction", "optimalMethod", "durationMins", "isFree", "price", "ticketLink"]
+};
+
+const admissionSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isRequired: { type: Type.BOOLEAN },
+    price: { type: Type.NUMBER },
+    buyLocation: { type: Type.STRING }
+  },
+  required: ["isRequired", "price", "buyLocation"]
+};
+
+const crowdPredictionSchema = {
+  type: Type.OBJECT,
+  properties: {
+    expectedCapacityPercentage: { type: Type.INTEGER },
+    peakHours: { type: Type.STRING },
+    advice: { type: Type.STRING }
+  },
+  required: ["expectedCapacityPercentage", "peakHours", "advice"]
+};
+
+const recommendedRestaurantSchema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING },
+    cuisine: { type: Type.STRING },
+    priceRange: { type: Type.STRING },
+    specialty: { type: Type.STRING }
+  },
+  required: ["name", "cuisine", "priceRange", "specialty"]
+};
+
+const timelineItemSchema = {
+  type: Type.OBJECT,
+  properties: {
+    id: { type: Type.STRING },
+    time: { type: Type.STRING },
+    activity: { type: Type.STRING },
+    description: { type: Type.STRING },
+    location: { type: Type.STRING },
+    transport: transportSchema,
+    admission: admissionSchema,
+    bookingCategory: { type: Type.STRING },
+    crowdPrediction: crowdPredictionSchema,
+    recommendedRestaurant: recommendedRestaurantSchema
+  },
+  required: ["id", "time", "activity", "description", "location", "transport", "admission"]
+};
+
+const dayItinerarySchema = {
+  type: Type.OBJECT,
+  properties: {
+    dayNumber: { type: Type.INTEGER },
+    dayTitle: { type: Type.STRING },
+    items: {
+      type: Type.ARRAY,
+      items: timelineItemSchema
+    }
+  },
+  required: ["dayNumber", "dayTitle", "items"]
+};
+
+const fullItinerarySchema = {
+  type: Type.OBJECT,
+  properties: {
+    destination: { type: Type.STRING },
+    daysCount: { type: Type.INTEGER },
+    dayPlans: {
+      type: Type.ARRAY,
+      items: dayItinerarySchema
+    }
+  },
+  required: ["destination", "daysCount", "dayPlans"]
+};
+
+const chatResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    itinerary: fullItinerarySchema,
+    explanation: { type: Type.STRING }
+  },
+  required: ["itinerary", "explanation"]
+};
+
 // ENDPOINTS
 
 // 1. FREE TIER: Attractions, weather & pricing comparison
@@ -326,6 +484,7 @@ app.post("/api/travel/attractions", async (req, res) => {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        responseSchema: travelGuideSchema,
       },
     });
 
@@ -424,6 +583,7 @@ app.post("/api/travel/itinerary", async (req, res) => {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        responseSchema: fullItinerarySchema,
       },
     });
 
@@ -501,6 +661,7 @@ app.post("/api/travel/chat", async (req, res) => {
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
+        responseSchema: chatResponseSchema,
       },
     });
 
